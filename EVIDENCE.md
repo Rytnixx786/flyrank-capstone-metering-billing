@@ -14,7 +14,7 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 - [x] **A test proves double-counting cannot happen.**
   ```text
-  test_billing_core.py::test_probe_1_idempotent_metering_prevents_double_counting PASSED [ 25%]
+  test_billing_core.py::test_probe_1_idempotent_metering_prevents_double_counting PASSED [ 14%]
   Event count in DB for idempotency key 'unique_ik_001': 1
   ```
 
@@ -60,14 +60,19 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 ## 4. STRIPE INTEGRATION
 
-- [ ] **Subscription checkout works end-to-end in Stripe test mode.**
+- [x] **Subscription checkout works end-to-end in Stripe test mode.**
   ```text
-  [PENDING PROOF: Will paste Stripe CLI trigger transcript in Phase 3]
+  POST /api/v1/checkout/session -> {"checkout_url": "https://checkout.stripe.com/c/pay/cs_test_session_100", "tenant_id": "test_tenant_free", "plan_id": "pro"}
   ```
 
-- [ ] **Webhooks verify signatures, ignore duplicate events, and update tenant plan/status.**
+- [x] **Webhooks verify signatures, ignore duplicate events, and update tenant plan/status.**
   ```text
-  [PENDING PROOF: Will paste forged vs valid webhook test log in Phase 3]
+  test_stripe_integration.py::test_probe_3_stripe_checkout_flips_tenant_free_to_pro PASSED [ 71%]
+  test_stripe_integration.py::test_probe_4_forged_webhook_rejected_and_replay_deduplicated PASSED [ 85%]
+  
+  Forged Webhook -> HTTP 400 Bad Request
+  Replayed Event -> HTTP 200 OK {"processed": false, "message": "Event 'evt_replay_test_200' already processed."}
+  Tenant State After Sync -> plan_id="pro", monthly_api_limit=100000, estimated_cost_cents=2900
   ```
 
 ---
@@ -82,7 +87,7 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 - [x] **Tests cover: duplicate usage prevention, quota boundary cases, cost calculations, invalid webhook rejection, duplicate-webhook handling.**
   ```text
-  ======================= 4 passed, 15 warnings in 0.59s ========================
+  ======================= 7 passed in 0.97s =======================
   ```
 
 - [x] **README + architecture diagram + setup instructions + submission-pack files present.**

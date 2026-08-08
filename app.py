@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import FastAPI, Depends, Header, HTTPException, Response, status
+from fastapi import FastAPI, Depends, Header, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from schemas import (
 )
 from metering_service import MeterService
 from quota_service import QuotaService, QuotaDecision
+from stripe_service import StripeService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
@@ -203,6 +204,48 @@ def get_usage(
         "api_calls": UsageItem(used=api_used, limit=plan.monthly_api_limit),
         "ai_tokens": UsageItem(used=tokens_used, limit=plan.monthly_token_limit),
         "estimated_cost_cents": cost_cents
+    }
+
+
+@app.post("/api/v1/checkout/session")
+def create_checkout_session(
+    plan_id: str = "pro",
+    x_tenant_id: Optional[str] = Header(None, alias="X-Tenant-ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    Creates a Stripe Checkout Session in Test Mode for upgrading tenant plan.
+    """
+    if not x_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Missing required header: X-Tenant-ID"
+        )
+
+    session_info = StripeService.create_checkout_session(db, x_tenant_id, plan_id)
+    return session_info
+
+
+@app.post("/api/v1/webhooks/stripe")
+async def stripe_webhook(
+    request: Request,
+    stripe_signature: Optional[str] = Header(None, alias="Stripe-Signature"),
+    db: Session = Depends(get_db)
+):
+    """
+    Stripe Webhook Handler.
+    Reads raw bytes body, verifies HMAC signature, deduplicates event ID, and syncs tenant plan.
+    """
+    raw_body = await request.body()
+    event_dict = StripeService.verify_webhook_signature(raw_body, stripe_signature)
+
+    is_processed, message = StripeService.process_webhook_event(db, event_dict)
+    return {
+        "status": "success",
+        "processed": is_processed,
+        "message": message,
+        "event_id": event_dict.get("id"),
+        "event_type": event_dict.get("type")
     }
 
 

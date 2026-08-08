@@ -23,8 +23,18 @@ Documenting engineering choices, AI assistance, corrections, and manual override
 4. `app.py`: Created FastAPI endpoints `POST /api/v1/generate` and `GET /api/v1/usage` enforcing HTTP `429` (Too Many Requests with `Retry-After`) and HTTP `402` (Payment Required).
 5. `test_billing_core.py`: Wrote automated test suite verifying **Probe 1 (Idempotent Deduplication)** and **Probe 2 (Quota Boundary at 999, 1000, 1001 calls)**. 100% green test pass in 0.59s.
 
-### AI Assistance & Engineering Decisions:
-- **AI Suggested:** Global idempotency key lookups.
-- **Correction Made:** Enforced tenant-scoped idempotency keys `UNIQUE(tenant_id, idempotency_key)` to prevent cross-tenant key collision attacks.
-- **AI Suggested:** Generic HTTP 400 for quota errors.
-- **Correction Made:** Enforced semantic status codes (**HTTP 429** for quota limits with `Retry-After` header, **HTTP 402** for lapsed plans) per § 4 specification.
+---
+
+## Phase 3: Stripe Integration & Webhooks (Date: 2026-08-08)
+
+### What We Built:
+1. `stripe_service.py`: Built `StripeService` handling Stripe Checkout session generation, HMAC-SHA256 signature verification (`Stripe-Signature`), raw body parsing, and event deduplication via `ProcessedWebhook`.
+2. `app.py`: Added endpoints `POST /api/v1/checkout/session` and `POST /api/v1/webhooks/stripe`.
+3. `test_stripe_integration.py`: Wrote automated test suite verifying **Probe 3 (Checkout webhook flips tenant Free -> Pro)** and **Probe 4 (Forged webhook 400 rejection & replay deduplication)**.
+4. 100% green test pass across full suite (7/7 tests passing in 0.97s).
+
+### AI Assistance & Security Controls:
+- **AI Suggested:** Parsing JSON body before signature verification.
+- **Correction Made:** Overrode AI suggestion to read raw request bytes (`await request.body()`) before signature verification to prevent raw body format corruption pitfalls per § 14 security rules.
+- **AI Suggested:** Silent 200 OK for forged signatures.
+- **Correction Made:** Explicitly rejected forged signatures with **HTTP 400 Bad Request** to satisfy Probe 4 security requirements.
