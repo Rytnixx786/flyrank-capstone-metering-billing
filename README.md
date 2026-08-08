@@ -87,21 +87,37 @@ All customer data is isolated per tenant. Money amounts and token costs are stor
   ```json
   {
     "tenant_id": "tenant_123",
-    "plan": "free",
+    "plan_id": "free",
     "period": "2026-08",
     "api_calls": { "used": 450, "limit": 1000 },
     "ai_tokens": { "used": 45000, "limit": 100000 },
-    "total_cost_cents": 125
+    "token_breakdown": {
+      "input_tokens": 1000,
+      "cached_input_tokens": 400,
+      "output_tokens": 500,
+      "reasoning_tokens": 100
+    },
+    "usage_cost_micro_cents": 900,
+    "estimated_cost_cents": 1
   }
   ```
 
-### 3. Stripe Webhook: `POST /api/v1/webhooks/stripe`
+### 3. Stripe Checkout Session: `POST /api/v1/checkout/session`
+- **Headers:** `X-Tenant-ID: <tenant_id>`
+- **Query Params:** `plan_id=pro`
+
+### 4. Stripe Webhook: `POST /api/v1/webhooks/stripe`
 - **Headers:** `Stripe-Signature: t=...,v1=...`
 - **Events Handled:** `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
 
 ---
 
-## 🛠️ 4. Setup & Running Instructions
+## 🎤 4. 6-Minute Failure Demo Presentation Script (§ 13)
+The complete step-by-step presentation script for human and evaluator demos is documented in [`DEMO_GUIDE.md`](DEMO_GUIDE.md).
+
+---
+
+## 🛠️ 5. Setup & Running Instructions
 
 ### 1. Environment Configuration
 Copy `.env.example` to `.env`:
@@ -114,19 +130,20 @@ cp .env.example .env
 pip install -r requirements.txt
 ```
 
-### 3. Run System
+### 3. Run System & Open Swagger UI
 ```bash
 python app.py
 ```
+Open [http://localhost:8000/docs](http://localhost:8000/docs) in your browser.
 
 ### 4. Run Test Suite
 ```bash
-pytest
+python -m pytest -v
 ```
 
 ---
 
-## 🚫 5. Non-Goals Definition (§ 7)
+## 🚫 6. Non-Goals Definition (§ 7)
 - **No Real Payments:** Runs in Stripe Test Mode only (`4242 4242 4242 4242`).
 - **No Real LLM API Calls:** Token counts are simulated in the API body.
 - **No Invoicing or Proration in Core:** Core scope focuses strictly on correctness, idempotency, boundary honesty, and webhook sync.
