@@ -1,0 +1,16 @@
+# FlyRank Capstone Manifest - Usage Metering & Billing Engine
+name: flyrank-capstone-metering-billing
+version: 1.0.0
+track: backend-ai-engineering
+
+# Evaluator Execution Commands
+run: "python app.py"
+seed: "python seed.py"
+test: "pytest"
+base_url: "http://localhost:8000"
+
+# Target Probe Endpoints
+endpoints:
+  billable_action: "POST /api/v1/generate"
+  usage_rollup: "GET /api/v1/usage"
+  stripe_webhook: "POST /api/v1/webhooks/stripe"
