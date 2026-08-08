@@ -33,8 +33,13 @@ Documenting engineering choices, AI assistance, corrections, and manual override
 3. `test_stripe_integration.py`: Wrote automated test suite verifying **Probe 3 (Checkout webhook flips tenant Free -> Pro)** and **Probe 4 (Forged webhook 400 rejection & replay deduplication)**.
 4. 100% green test pass across full suite (7/7 tests passing in 0.97s).
 
-### AI Assistance & Security Controls:
-- **AI Suggested:** Parsing JSON body before signature verification.
-- **Correction Made:** Overrode AI suggestion to read raw request bytes (`await request.body()`) before signature verification to prevent raw body format corruption pitfalls per § 14 security rules.
-- **AI Suggested:** Silent 200 OK for forged signatures.
-- **Correction Made:** Explicitly rejected forged signatures with **HTTP 400 Bad Request** to satisfy Probe 4 security requirements.
+---
+
+## Phase 4: Cost Calculation & AI-Token Rules (Date: 2026-08-08)
+
+### What We Built:
+1. `pricing_config.py`: Defined pinned pricing constants in micro-cents (`INPUT`: 150/1k, `CACHED`: 75/1k, `OUTPUT`: 600/1k, `REASONING`: 600/1k) and integer ceiling rounding conversion helper.
+2. `models.py` & `metering_service.py`: Extended `UsageEvent` model and `MeterService` to record detailed token breakdown categories and cost micro-cents.
+3. `app.py`: Updated `POST /api/v1/generate` and `GET /api/v1/usage` to return token category breakdowns and exact micro-cent rollups.
+4. `test_cost_calculation.py`: Wrote automated test suite verifying **Probe 5 (Pinned pricing rules for cached inputs and reasoning tokens)**.
+5. `EVIDENCE.md`: Checked off 100% of Definition-of-Done requirements with pasted proof logs across all 5 Probes. 9/9 tests passing in 1.03s.

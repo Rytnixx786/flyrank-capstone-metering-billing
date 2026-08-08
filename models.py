@@ -61,6 +61,14 @@ class UsageEvent(Base):
     usage_type = Column(String, nullable=False)  # 'api_call', 'ai_tokens'
     quantity = Column(Integer, nullable=False)
     idempotency_key = Column(String, nullable=False)
+
+    # Detailed Token Category Breakdown & Cost Micro-Cents (§ 4)
+    input_tokens = Column(Integer, default=0)
+    cached_input_tokens = Column(Integer, default=0)
+    output_tokens = Column(Integer, default=0)
+    reasoning_tokens = Column(Integer, default=0)
+    cost_micro_cents = Column(Integer, default=0)
+
     response_payload = Column(Text, nullable=True)  # Cached JSON payload for deduplicated retries
     timestamp = Column(DateTime, default=current_utc_time, index=True)
 

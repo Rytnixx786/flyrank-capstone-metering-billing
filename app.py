@@ -10,11 +10,12 @@ from database import get_db, init_db
 from models import Tenant, Subscription, Plan, UsageEvent
 from schemas import (
     GenerateRequest, GenerateResponse, UsageRollupResponse,
-    UsageItem, ErrorEnvelope, ErrorDetail
+    UsageItem, TokenBreakdown, ErrorEnvelope, ErrorDetail
 )
 from metering_service import MeterService
 from quota_service import QuotaService, QuotaDecision
 from stripe_service import StripeService
+from pricing_config import CostCalculator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
@@ -61,7 +62,7 @@ def generate_response(
     """
     Billable action endpoint.
     Meters usage idempotently based on (X-Tenant-ID, Idempotency-Key).
-    Enforces subscription quotas and returns honest HTTP 429 / 402 responses.
+    Enforces subscription quotas and calculates token micro-cents cost.
     """
     if not x_tenant_id:
         raise HTTPException(
@@ -84,9 +85,17 @@ def generate_response(
             return JSONResponse(status_code=status.HTTP_200_OK, content=cached_data)
 
     # 2. Total Tokens Requested Calculation
-    # Note: Reasoning tokens count as output tokens (§ 4)
+    # Reasoning tokens count as output tokens (§ 4)
     metered_output_tokens = request.output_tokens + request.reasoning_tokens
     total_tokens_requested = request.input_tokens + request.cached_input_tokens + metered_output_tokens
+
+    # Calculate Micro-Cents Cost
+    cost_micro_cents = CostCalculator.calculate_token_cost_micro_cents(
+        input_tokens=request.input_tokens,
+        cached_input_tokens=request.cached_input_tokens,
+        output_tokens=request.output_tokens,
+        reasoning_tokens=request.reasoning_tokens
+    )
 
     # 3. Quota Enforcement Check
     decision, error_msg, metrics = QuotaService.evaluate_request(
@@ -129,6 +138,7 @@ def generate_response(
         "generated_content": simulated_content,
         "api_calls_metered": 1,
         "total_tokens_metered": total_tokens_requested,
+        "cost_micro_cents": cost_micro_cents,
         "is_cached_deduplicated": False
     }
 
@@ -150,6 +160,10 @@ def generate_response(
         usage_type="ai_tokens",
         quantity=total_tokens_requested,
         idempotency_key=idempotency_key,
+        input_tokens=request.input_tokens,
+        cached_input_tokens=request.cached_input_tokens,
+        output_tokens=request.output_tokens,
+        reasoning_tokens=request.reasoning_tokens,
         response_payload=response_data
     )
 
@@ -163,7 +177,7 @@ def get_usage(
 ):
     """
     Usage Rollup endpoint.
-    Returns current calendar month usage, plan limits, and estimated cost for the tenant.
+    Returns current calendar month usage, token breakdowns, and exact cost rollups for the tenant.
     """
     if not x_tenant_id:
         raise HTTPException(
@@ -191,10 +205,11 @@ def get_usage(
 
     api_used = summary.get("api_call", 0)
     tokens_used = summary.get("ai_tokens", 0)
+    usage_cost_micro = summary.get("total_cost_micro_cents", 0)
 
-    # Cost rollup calculation
-    # Base plan cost in cents
-    cost_cents = plan.price_cents
+    # Convert usage cost to cents + add base plan subscription cost
+    usage_cost_cents = CostCalculator.micro_cents_to_cents(usage_cost_micro)
+    total_estimated_cost_cents = plan.price_cents + usage_cost_cents
 
     return {
         "tenant_id": x_tenant_id,
@@ -203,7 +218,14 @@ def get_usage(
         "period": f"{now.year:04d}-{now.month:02d}",
         "api_calls": UsageItem(used=api_used, limit=plan.monthly_api_limit),
         "ai_tokens": UsageItem(used=tokens_used, limit=plan.monthly_token_limit),
-        "estimated_cost_cents": cost_cents
+        "token_breakdown": TokenBreakdown(
+            input_tokens=summary.get("input_tokens", 0),
+            cached_input_tokens=summary.get("cached_input_tokens", 0),
+            output_tokens=summary.get("output_tokens", 0),
+            reasoning_tokens=summary.get("reasoning_tokens", 0)
+        ),
+        "usage_cost_micro_cents": usage_cost_micro,
+        "estimated_cost_cents": total_estimated_cost_cents
     }
 
 

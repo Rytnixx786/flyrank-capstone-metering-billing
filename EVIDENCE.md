@@ -9,12 +9,12 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 - [x] **A billable action creates exactly one usage event, even under retries — deduplicated by idempotency key.**
   ```text
   INFO [MeteringService] Idempotency match found: tenant=test_tenant_1, key=unique_ik_001. Returning original cached result.
-  200 OK -> {"status": "allowed", "is_cached_deduplicated": true}
+  HTTP 200 OK -> {"status": "allowed", "is_cached_deduplicated": true}
   ```
 
 - [x] **A test proves double-counting cannot happen.**
   ```text
-  test_billing_core.py::test_probe_1_idempotent_metering_prevents_double_counting PASSED [ 14%]
+  test_billing_core.py::test_probe_1_idempotent_metering_prevents_double_counting PASSED [ 11%]
   Event count in DB for idempotency key 'unique_ik_001': 1
   ```
 
@@ -43,17 +43,30 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 - [x] **Monthly usage rolls up into a cost figure per tenant.**
   ```text
-  GET /api/v1/usage -> {"tenant_id": "test_tenant_boundary", "api_calls": {"used": 999, "limit": 1000}, "estimated_cost_cents": 0}
+  GET /api/v1/usage -> {
+    "tenant_id": "test_tenant_boundary",
+    "api_calls": {"used": 999, "limit": 1000},
+    "token_breakdown": {"input_tokens": 1000, "cached_input_tokens": 2000, "output_tokens": 500, "reasoning_tokens": 500},
+    "usage_cost_micro_cents": 900,
+    "estimated_cost_cents": 1
+  }
   ```
 
-- [ ] **AI token pricing handles cached input tokens, reasoning tokens, and output pricing correctly.**
+- [x] **AI token pricing handles cached input tokens, reasoning tokens, and output pricing correctly.**
   ```text
-  [PENDING PROOF: Will paste token pricing calculator unit test output in Phase 4]
+  test_cost_calculation.py::test_probe_5_pinned_pricing_rules_and_reasoning_tokens PASSED [ 55%]
+  
+  Input (1000 @ 150/1k) = 150 micro-cents
+  Cached (2000 @ 75/1k) = 150 micro-cents (50% discount)
+  Output (500 @ 600/1k) = 300 micro-cents
+  Reasoning (500 @ 600/1k) = 300 micro-cents (output rate)
+  Total = 900 micro-cents ($0.0090)
   ```
 
-- [ ] **Pricing constants are pinned and covered by tests.**
+- [x] **Pricing constants are pinned and covered by tests.**
   ```text
-  [PENDING PROOF: Will paste test_pricing_constants output in Phase 4]
+  test_cost_calculation.py::test_pinned_pricing_constants_unit PASSED [ 66%]
+  1000 input + 1000 cached + 1000 output + 1000 reasoning = 1425 micro-cents -> 2 cents (ceiling rounding)
   ```
 
 ---
@@ -67,8 +80,8 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 - [x] **Webhooks verify signatures, ignore duplicate events, and update tenant plan/status.**
   ```text
-  test_stripe_integration.py::test_probe_3_stripe_checkout_flips_tenant_free_to_pro PASSED [ 71%]
-  test_stripe_integration.py::test_probe_4_forged_webhook_rejected_and_replay_deduplicated PASSED [ 85%]
+  test_stripe_integration.py::test_probe_3_stripe_checkout_flips_tenant_free_to_pro PASSED [ 77%]
+  test_stripe_integration.py::test_probe_4_forged_webhook_rejected_and_replay_deduplicated PASSED [ 88%]
   
   Forged Webhook -> HTTP 400 Bad Request
   Replayed Event -> HTTP 200 OK {"processed": false, "message": "Event 'evt_replay_test_200' already processed."}
@@ -87,7 +100,7 @@ Every box below corresponds to a core Definition-of-Done requirement from § 6. 
 
 - [x] **Tests cover: duplicate usage prevention, quota boundary cases, cost calculations, invalid webhook rejection, duplicate-webhook handling.**
   ```text
-  ======================= 7 passed in 0.97s =======================
+  ======================= 9 passed in 1.03s =======================
   ```
 
 - [x] **README + architecture diagram + setup instructions + submission-pack files present.**

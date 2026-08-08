@@ -18,12 +18,20 @@ class GenerateResponse(BaseModel):
     generated_content: str = Field(..., description="Simulated generated response text")
     api_calls_metered: int = Field(default=1)
     total_tokens_metered: int = Field(..., description="Total metered token quantity")
+    cost_micro_cents: int = Field(..., description="Calculated event cost in micro-cents")
     is_cached_deduplicated: bool = Field(default=False, description="True if response was returned via idempotency key match")
 
 
 class UsageItem(BaseModel):
     used: int
     limit: int
+
+
+class TokenBreakdown(BaseModel):
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    reasoning_tokens: int
 
 
 class UsageRollupResponse(BaseModel):
@@ -34,6 +42,8 @@ class UsageRollupResponse(BaseModel):
     period: str
     api_calls: UsageItem
     ai_tokens: UsageItem
+    token_breakdown: TokenBreakdown
+    usage_cost_micro_cents: int
     estimated_cost_cents: int
 
 
