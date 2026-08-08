@@ -112,12 +112,7 @@ All customer data is isolated per tenant. Money amounts and token costs are stor
 
 ---
 
-## 🎤 4. 6-Minute Failure Demo Presentation Script (§ 13)
-The complete step-by-step presentation script for human and evaluator demos is documented in [`DEMO_GUIDE.md`](DEMO_GUIDE.md).
-
----
-
-## 🛠️ 5. Setup & Running Instructions
+## 🛠️ 4. Setup & Running Instructions
 
 ### 1. Environment Configuration
 Copy `.env.example` to `.env`:
@@ -143,7 +138,7 @@ python -m pytest -v
 
 ---
 
-## 🚫 6. Non-Goals Definition (§ 7)
+## 🚫 5. Non-Goals Definition (§ 7)
 - **No Real Payments:** Runs in Stripe Test Mode only (`4242 4242 4242 4242`).
 - **No Real LLM API Calls:** Token counts are simulated in the API body.
 - **No Invoicing or Proration in Core:** Core scope focuses strictly on correctness, idempotency, boundary honesty, and webhook sync.
